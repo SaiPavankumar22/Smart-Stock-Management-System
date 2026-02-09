@@ -1,0 +1,295 @@
+{% extends "layout.html" %}
+
+{% block title %}Inventory - Smart Grocery{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filter-bar {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: white;
+        padding: 1rem 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Quick Alerts Banner -->
+    {% if alerts and alerts.total_alerts > 0 %}
+    <div class="alert alert-warning alert-dismissible fade show mb-3" role="alert">
+        <strong><i class="bi bi-bell-fill"></i> Stock Alerts:</strong>
+        {% if alerts.dead_stock|length > 0 %}
+            <span class="badge bg-danger">{{ alerts.dead_stock|length }} Dead</span>
+        {% endif %}
+        {% if alerts.critical_stock|length > 0 %}
+            <span class="badge bg-warning text-dark">{{ alerts.critical_stock|length }} Critical</span>
+        {% endif %}
+        {% if alerts.low_stock|length > 0 %}
+            <span class="badge bg-info">{{ alerts.low_stock|length }} Low</span>
+        {% endif %}
+        <a href="/low-stock" class="alert-link ms-2">View All →</a>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="bi bi-box-seam text-primary"></i> Full Inventory</h2>
+            <p class="text-muted">All stocked products in one place</p>
+        </div>
+        <div>
+            <a href="/add-item" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Add New Item
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="filters-section">
+        <div class="row g-3">
+            <div class="col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" id="searchInput" class="form-control" placeholder="Search by name, brand, or category...">
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <select id="categoryFilter" class="form-select">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="btn-group" role="group">
+                    <button class="btn btn-outline-primary" onclick="sortTable('name')">
+                        <i class="bi bi-sort-alpha-down"></i> Name
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="sortTable('price')">
+                        <i class="bi bi-currency-rupee"></i> Price
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="sortTable('stock')">
+                        <i class="bi bi-box"></i> Stock
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Table -->
+    <div class="table-container mt-4">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="inventoryTable">
+                <thead>
+                    <tr>
+                        <th>Image</th>
+                        <th>Name</th>
+                        <th>Brand</th>
+                        <th>Category</th>
+                        <th>Price</th>
+                        <th>Stock</th>
+                        <th>Daily Sales</th>
+                        <th>Supplier</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryBody">
+                    {% for item in items %}
+                    <tr data-name="{{ item.name|lower }}" 
+                        data-brand="{{ item.brand|lower }}" 
+                        data-category="{{ item.category|lower }}"
+                        data-price="{{ item.price }}"
+                        data-stock="{{ item.stock }}"
+                        {% if item.stock == 0 %}class="table-danger"
+                        {% elif item.stock < 5 %}style="background-color: #fff3cd;"
+                        {% elif item.stock < 10 %}class="low-stock"{% endif %}>
+                        <td>
+                            <img src="{{ item.image }}" alt="{{ item.name }}" onerror="this.src='https://via.placeholder.com/60?text=No+Image'">
+                        </td>
+                        <td><strong>{{ item.name }}</strong></td>
+                        <td>{{ item.brand }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ item.category }}</span>
+                        </td>
+                        <td><strong>₹{{ item.price }}</strong></td>
+                        <td>
+                            {% if item.stock == 0 %}
+                                <span class="badge bg-danger fs-6">
+                                    <i class="bi bi-x-circle"></i> 0 (DEAD)
+                                </span>
+                            {% elif item.stock < 5 %}
+                                <span class="badge bg-warning text-dark fs-6">
+                                    <i class="bi bi-exclamation-triangle"></i> {{ item.stock }}
+                                </span>
+                            {% elif item.stock < 10 %}
+                                <span class="badge bg-info">{{ item.stock }}</span>
+                            {% elif item.stock < 50 %}
+                                <span class="badge bg-primary">{{ item.stock }}</span>
+                            {% else %}
+                                <span class="badge bg-success">{{ item.stock }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.daily_sales or 0 }}</td>
+                        <td>{{ item.supplier or 'N/A' }}</td>
+                        <td class="action-btns">
+                            <a href="/edit-item/{{ item.objectID }}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a>
+                            <button class="btn btn-sm btn-danger" onclick="confirmDelete('{{ item.objectID }}', '{{ item.name }}')">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="text-center mt-3">
+            <p class="text-muted">Showing <span id="rowCount">{{ items|length }}</span> items</p>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="deleteItemName"></strong>?</p>
+                <p class="text-danger"><i class="bi bi-exclamation-triangle"></i> This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let allRows = [];
+    let currentSort = { field: '', order: 'asc' };
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        // Store all rows
+        allRows = Array.from(document.querySelectorAll('#inventoryBody tr'));
+        
+        // Populate category filter
+        populateCategoryFilter();
+        
+        // Setup event listeners
+        document.getElementById('searchInput').addEventListener('input', filterTable);
+        document.getElementById('categoryFilter').addEventListener('change', filterTable);
+    });
+
+    // Populate category filter dropdown
+    function populateCategoryFilter() {
+        const categories = new Set();
+        allRows.forEach(row => {
+            const category = row.dataset.category;
+            if (category) categories.add(category);
+        });
+        
+        const select = document.getElementById('categoryFilter');
+        Array.from(categories).sort().forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat;
+            option.textContent = cat.charAt(0).toUpperCase() + cat.slice(1);
+            select.appendChild(option);
+        });
+    }
+
+    // Filter table
+    function filterTable() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const categoryFilter = document.getElementById('categoryFilter').value.toLowerCase();
+        
+        let visibleCount = 0;
+        
+        allRows.forEach(row => {
+            const name = row.dataset.name || '';
+            const brand = row.dataset.brand || '';
+            const category = row.dataset.category || '';
+            
+            const matchesSearch = !searchTerm || 
+                name.includes(searchTerm) || 
+                brand.includes(searchTerm) || 
+                category.includes(searchTerm);
+            
+            const matchesCategory = !categoryFilter || category === categoryFilter;
+            
+            if (matchesSearch && matchesCategory) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        document.getElementById('rowCount').textContent = visibleCount;
+    }
+
+    // Sort table
+    function sortTable(field) {
+        const tbody = document.getElementById('inventoryBody');
+        
+        // Toggle sort order
+        if (currentSort.field === field) {
+            currentSort.order = currentSort.order === 'asc' ? 'desc' : 'asc';
+        } else {
+            currentSort.field = field;
+            currentSort.order = 'asc';
+        }
+        
+        const sortedRows = allRows.sort((a, b) => {
+            let aVal, bVal;
+            
+            if (field === 'name') {
+                aVal = a.dataset.name;
+                bVal = b.dataset.name;
+            } else if (field === 'price' || field === 'stock') {
+                aVal = parseFloat(a.dataset[field]) || 0;
+                bVal = parseFloat(b.dataset[field]) || 0;
+            }
+            
+            if (currentSort.order === 'asc') {
+                return aVal > bVal ? 1 : -1;
+            } else {
+                return aVal < bVal ? 1 : -1;
+            }
+        });
+        
+        // Re-append sorted rows
+        sortedRows.forEach(row => tbody.appendChild(row));
+        
+        // Reapply filters
+        filterTable();
+    }
+
+    // Delete confirmation
+    let deleteItemId = '';
+    
+    function confirmDelete(itemId, itemName) {
+        deleteItemId = itemId;
+        document.getElementById('deleteItemName').textContent = itemName;
+        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        modal.show();
+    }
+    
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+        if (deleteItemId) {
+            window.location.href = `/delete-item/${deleteItemId}`;
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,230 @@
+{% extends "layout.html" %}
+
+{% block title %}Home - Smart Grocery Inventory{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Alert Notifications -->
+    {% if alerts and alerts.total_alerts > 0 %}
+    <div class="row mb-3">
+        <div class="col-12">
+            <!-- Dead Stock Alert (Critical) -->
+            {% if alerts.dead_stock|length > 0 %}
+            <div class="alert alert-danger alert-dismissible fade show d-flex align-items-center" role="alert">
+                <i class="bi bi-exclamation-octagon-fill fs-3 me-3"></i>
+                <div class="flex-grow-1">
+                    <strong>CRITICAL: Dead Stock Alert!</strong>
+                    <p class="mb-1">{{ alerts.dead_stock|length }} items are completely out of stock and need immediate restocking!</p>
+                    <a href="/dead-stock" class="alert-link fw-bold">View Dead Stock Items →</a>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+            
+            <!-- Critical Stock Alert -->
+            {% if alerts.critical_stock|length > 0 %}
+            <div class="alert alert-warning alert-dismissible fade show d-flex align-items-center" role="alert">
+                <i class="bi bi-exclamation-triangle-fill fs-3 me-3"></i>
+                <div class="flex-grow-1">
+                    <strong>URGENT: Critical Stock Alert!</strong>
+                    <p class="mb-1">{{ alerts.critical_stock|length }} items are at critically low levels (< 5 units)</p>
+                    <a href="/low-stock" class="alert-link fw-bold">View Critical Items →</a>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+            
+            <!-- Low Stock Alert -->
+            {% if alerts.low_stock|length > 0 %}
+            <div class="alert alert-info alert-dismissible fade show d-flex align-items-center" role="alert">
+                <i class="bi bi-info-circle-fill fs-3 me-3"></i>
+                <div class="flex-grow-1">
+                    <strong>Notice: Low Stock Alert</strong>
+                    <p class="mb-1">{{ alerts.low_stock|length }} items need restocking soon</p>
+                    <a href="/low-stock" class="alert-link fw-bold">View Low Stock Items →</a>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Hero Section -->
+    <div class="hero-section text-center fade-in">
+        <div class="container">
+            <h1><i class="bi bi-shop-window"></i> Welcome to Smart Grocery</h1>
+            <p class="lead">Your Complete Inventory Management Solution</p>
+            <p class="mb-4">Manage products, track sales, and get real-time insights</p>
+            
+            <div class="d-flex justify-content-center flex-wrap gap-3">
+                <a href="/inventory" class="btn btn-light btn-lg">
+                    <i class="bi bi-box-seam"></i> View Inventory
+                </a>
+                <a href="/add-item" class="btn btn-outline-light btn-lg">
+                    <i class="bi bi-plus-circle"></i> Add Product
+                </a>
+                <a href="/dashboard" class="btn btn-outline-light btn-lg">
+                    <i class="bi bi-graph-up"></i> View Analytics
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card stat-card">
+                <i class="bi bi-box-seam card-icon text-primary"></i>
+                <div class="stat-value">{{ total_items or 0 }}</div>
+                <div class="stat-label">Total Items</div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card stat-card {% if dead_stock_count > 0 %}border-danger{% endif %}">
+                <i class="bi bi-exclamation-octagon card-icon {% if dead_stock_count > 0 %}text-danger{% else %}text-secondary{% endif %}"></i>
+                <div class="stat-value {% if dead_stock_count > 0 %}text-danger{% endif %}">{{ dead_stock_count or 0 }}</div>
+                <div class="stat-label">Dead Stock (0)</div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card stat-card {% if critical_stock_count > 0 %}border-warning{% endif %}">
+                <i class="bi bi-exclamation-triangle card-icon {% if critical_stock_count > 0 %}text-warning{% else %}text-secondary{% endif %}"></i>
+                <div class="stat-value {% if critical_stock_count > 0 %}text-warning{% endif %}">{{ critical_stock_count or 0 }}</div>
+                <div class="stat-label">Critical (< 5)</div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card stat-card">
+                <i class="bi bi-info-circle card-icon text-info"></i>
+                <div class="stat-value">{{ low_stock_count or 0 }}</div>
+                <div class="stat-label">Low Stock (< 10)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Stats Row -->
+    <div class="row mb-4">
+        <div class="col-md-6 col-sm-6 mb-3">
+            <div class="card stat-card">
+                <i class="bi bi-cart-check card-icon text-success"></i>
+                <div class="stat-value">{{ total_sales or 0 }}</div>
+                <div class="stat-label">Total Sales</div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-sm-6 mb-3">
+            <div class="card stat-card">
+                <i class="bi bi-currency-rupee card-icon text-success"></i>
+                <div class="stat-value">₹{{ total_value or '0' }}</div>
+                <div class="stat-label">Stock Value</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h3 class="mb-3"><i class="bi bi-lightning-fill text-warning"></i> Quick Actions</h3>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-box-seam card-icon text-primary"></i>
+                    <h5 class="card-title">Manage Inventory</h5>
+                    <p class="card-text text-muted">View, edit, and manage all your products in one place</p>
+                    <a href="/inventory" class="btn btn-primary">Go to Inventory</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-plus-circle-fill card-icon text-success"></i>
+                    <h5 class="card-title">Add New Product</h5>
+                    <p class="card-text text-muted">Add new items to your inventory database</p>
+                    <a href="/add-item" class="btn btn-success">Add Item</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-upload card-icon text-info"></i>
+                    <h5 class="card-title">Upload Sales Data</h5>
+                    <p class="card-text text-muted">Update inventory with daily sales via CSV</p>
+                    <a href="/upload-sales" class="btn btn-info">Upload CSV</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- More Actions -->
+    <div class="row">
+        <div class="col-12">
+            <h3 class="mb-3"><i class="bi bi-bar-chart-fill text-primary"></i> Analytics & Tools</h3>
+        </div>
+        
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-graph-up text-primary" style="font-size: 2.5rem;"></i>
+                    <h6 class="mt-3">Dashboard</h6>
+                    <p class="text-muted small">View sales analytics</p>
+                    <a href="/dashboard" class="btn btn-sm btn-outline-primary">View</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-search text-secondary" style="font-size: 2.5rem;"></i>
+                    <h6 class="mt-3">Smart Search</h6>
+                    <p class="text-muted small">Find products instantly</p>
+                    <a href="/search" class="btn btn-sm btn-outline-secondary">Search</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-exclamation-triangle text-warning" style="font-size: 2.5rem;"></i>
+                    <h6 class="mt-3">Stock Alerts</h6>
+                    <p class="text-muted small">Low & Critical items</p>
+                    <a href="/low-stock" class="btn btn-sm btn-outline-warning">View</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-exclamation-octagon text-danger" style="font-size: 2.5rem;"></i>
+                    <h6 class="mt-3">Dead Stock</h6>
+                    <p class="text-muted small">Zero stock items</p>
+                    <a href="/dead-stock" class="btn btn-sm btn-outline-danger">View</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-list-ul text-primary" style="font-size: 2.5rem;"></i>
+                    <h6 class="mt-3">Full Inventory</h6>
+                    <p class="text-muted small">All products</p>
+                    <a href="/inventory" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

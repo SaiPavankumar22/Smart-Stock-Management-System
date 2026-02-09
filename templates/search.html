@@ -1,0 +1,312 @@
+{% extends "layout.html" %}
+
+{% block title %}Search - Smart Grocery{% endblock %}
+
+{% block extra_css %}
+<!-- Algolia InstantSearch CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/instantsearch.css@7/themes/satellite-min.css">
+<style>
+    .ais-SearchBox {
+        margin-bottom: 2rem;
+    }
+    
+    .ais-SearchBox-input {
+        border-radius: 8px;
+        padding: 1rem;
+        font-size: 1.1rem;
+        border: 2px solid #dee2e6;
+    }
+    
+    .ais-SearchBox-input:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    
+    .search-sidebar {
+        position: sticky;
+        top: 20px;
+    }
+    
+    .ais-Hits-item {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .ais-Hits-item:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    }
+    
+    .product-image {
+        width: 120px;
+        height: 120px;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+    
+    .ais-RefinementList-label {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem;
+        border-radius: 6px;
+        transition: background-color 0.2s;
+    }
+    
+    .ais-RefinementList-label:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .ais-RefinementList-count {
+        background: #0d6efd;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        margin-left: auto;
+        font-size: 0.875rem;
+    }
+    
+    .facet-title {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #0d6efd;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="text-center mb-4">
+        <h2><i class="bi bi-search text-primary"></i> Smart Inventory Search</h2>
+        <p class="text-muted">Find products instantly with advanced search and filters</p>
+    </div>
+
+    <div id="searchbox"></div>
+
+    <div class="row">
+        <!-- Sidebar Filters -->
+        <div class="col-lg-3">
+            <div class="search-sidebar">
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5 class="facet-title"><i class="bi bi-funnel"></i> Filters</h5>
+                        
+                        <h6 class="mt-3">Category</h6>
+                        <div id="category-list"></div>
+                        
+                        <h6 class="mt-4">Brand</h6>
+                        <div id="brand-list"></div>
+                        
+                        <h6 class="mt-4">Supplier</h6>
+                        <div id="supplier-list"></div>
+                    </div>
+                </div>
+
+                <!-- Clear Filters -->
+                <div id="clear-refinements"></div>
+
+                <!-- Stats -->
+                <div class="card mt-3">
+                    <div class="card-body text-center">
+                        <div id="stats"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Results -->
+        <div class="col-lg-9">
+            <div id="hits"></div>
+            <div class="d-flex justify-content-center mt-4">
+                <div id="pagination"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Algolia InstantSearch JS -->
+<script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instantsearch.js@4"></script>
+
+<script>
+    // Initialize Algolia Search Client
+    const searchClient = algoliasearch("B2B35LB8SP", "YOUR_SEARCH_API_KEY");
+
+    const search = instantsearch({
+        indexName: "grocery_inventory",
+        searchClient,
+        routing: true
+    });
+
+    // Search Box
+    search.addWidgets([
+        instantsearch.widgets.searchBox({
+            container: '#searchbox',
+            placeholder: 'Search items (atta, oil, biscuits...)',
+            showSubmit: false,
+            showReset: true,
+            showLoadingIndicator: true,
+        })
+    ]);
+
+    // Hits (Results)
+    search.addWidgets([
+        instantsearch.widgets.hits({
+            container: '#hits',
+            templates: {
+                empty: `
+                    <div class="text-center py-5">
+                        <i class="bi bi-search" style="font-size: 4rem; color: #dee2e6;"></i>
+                        <h4 class="mt-3 text-muted">No results found</h4>
+                        <p class="text-muted">Try adjusting your search or filters</p>
+                    </div>
+                `,
+                item(hit, { html, components }) {
+                    return html`
+                        <div class="d-flex align-items-start">
+                            <img 
+                                src="${hit.image || 'https://via.placeholder.com/120?text=No+Image'}" 
+                                alt="${hit.name}"
+                                class="product-image me-3"
+                                onerror="this.src='https://via.placeholder.com/120?text=No+Image'"
+                            />
+                            <div class="flex-grow-1">
+                                <h5 class="mb-2">
+                                    ${components.Highlight({ hit, attribute: 'name' })}
+                                </h5>
+                                <div class="mb-2">
+                                    <span class="badge bg-secondary me-2">
+                                        ${components.Highlight({ hit, attribute: 'category' })}
+                                    </span>
+                                    <span class="badge bg-info">
+                                        ${components.Highlight({ hit, attribute: 'brand' })}
+                                    </span>
+                                </div>
+                                <p class="mb-2 text-muted">${hit.description || 'No description available'}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong class="text-success fs-5">₹${hit.price}</strong>
+                                    </div>
+                                    <div>
+                                        <span class="me-3">
+                                            <i class="bi bi-box-seam"></i> 
+                                            Stock: <strong ${hit.stock < 10 ? 'class="text-danger"' : ''}>${hit.stock}</strong>
+                                        </span>
+                                        ${hit.supplier ? `
+                                            <span class="text-muted">
+                                                <i class="bi bi-truck"></i> ${hit.supplier}
+                                            </span>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <a href="/edit-item/${hit.objectID}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-pencil"></i> Edit
+                                    </a>
+                                    ${hit.stock < 10 ? `
+                                        <span class="badge bg-danger ms-2">
+                                            <i class="bi bi-exclamation-triangle"></i> Low Stock
+                                        </span>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        })
+    ]);
+
+    // Refinement Lists (Facets)
+    search.addWidgets([
+        instantsearch.widgets.refinementList({
+            container: '#category-list',
+            attribute: 'category',
+            limit: 10,
+            showMore: true,
+            showMoreLimit: 20,
+        }),
+        
+        instantsearch.widgets.refinementList({
+            container: '#brand-list',
+            attribute: 'brand',
+            limit: 10,
+            showMore: true,
+            showMoreLimit: 20,
+        }),
+        
+        instantsearch.widgets.refinementList({
+            container: '#supplier-list',
+            attribute: 'supplier',
+            limit: 10,
+            showMore: true,
+            showMoreLimit: 20,
+        })
+    ]);
+
+    // Clear Refinements
+    search.addWidgets([
+        instantsearch.widgets.clearRefinements({
+            container: '#clear-refinements',
+            templates: {
+                resetLabel: 'Clear all filters',
+            },
+            cssClasses: {
+                button: 'btn btn-outline-danger btn-sm w-100',
+            }
+        })
+    ]);
+
+    // Stats
+    search.addWidgets([
+        instantsearch.widgets.stats({
+            container: '#stats',
+            templates: {
+                text(data, { html }) {
+                    let count = '';
+                    
+                    if (data.hasManyResults) {
+                        count = `${data.nbHits} results`;
+                    } else if (data.hasOneResult) {
+                        count = `1 result`;
+                    } else {
+                        count = `no results`;
+                    }
+                    
+                    return html`
+                        <div>
+                            <i class="bi bi-files text-primary" style="font-size: 2rem;"></i>
+                            <h4 class="mt-2 mb-0">${count}</h4>
+                            <p class="text-muted small mb-0">in ${data.processingTimeMS}ms</p>
+                        </div>
+                    `;
+                }
+            }
+        })
+    ]);
+
+    // Pagination
+    search.addWidgets([
+        instantsearch.widgets.pagination({
+            container: '#pagination',
+            cssClasses: {
+                list: 'pagination',
+                item: 'page-item',
+                link: 'page-link',
+                selectedItem: 'active',
+                disabledItem: 'disabled',
+            }
+        })
+    ]);
+
+    // Start the search
+    search.start();
+</script>
+{% endblock %}

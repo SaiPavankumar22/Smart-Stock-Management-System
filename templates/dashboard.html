@@ -1,0 +1,351 @@
+{% extends "layout.html" %}
+
+{% block title %}Dashboard - Smart Grocery{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Stock Alerts -->
+    {% if alerts and alerts.total_alerts > 0 %}
+    <div class="alert alert-warning alert-dismissible fade show d-flex align-items-center mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle-fill fs-3 me-3"></i>
+        <div class="flex-grow-1">
+            <strong>Stock Alerts:</strong> 
+            {% if alerts.dead_stock|length > 0 %}
+                <span class="text-danger">{{ alerts.dead_stock|length }} dead stock</span>
+            {% endif %}
+            {% if alerts.critical_stock|length > 0 %}
+                {% if alerts.dead_stock|length > 0 %}, {% endif %}
+                <span class="text-warning">{{ alerts.critical_stock|length }} critical</span>
+            {% endif %}
+            {% if alerts.low_stock|length > 0 %}
+                {% if alerts.dead_stock|length > 0 or alerts.critical_stock|length > 0 %}, {% endif %}
+                <span class="text-info">{{ alerts.low_stock|length }} low stock</span>
+            {% endif %}
+            <a href="/low-stock" class="alert-link ms-2">→ View Details</a>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+
+    <div class="text-center mb-4">
+        <h2><i class="bi bi-graph-up text-primary"></i> Analytics Dashboard</h2>
+        <p class="text-muted">Live sales insights and inventory analytics</p>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="bi bi-cart-check text-success" style="font-size: 2.5rem;"></i>
+                    <h3 class="mt-2 mb-0" id="totalSales">Loading...</h3>
+                    <p class="text-muted mb-0">Total Sales</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="bi bi-box-seam text-primary" style="font-size: 2.5rem;"></i>
+                    <h3 class="mt-2 mb-0" id="totalProducts">Loading...</h3>
+                    <p class="text-muted mb-0">Total Products</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="bi bi-exclamation-triangle text-warning" style="font-size: 2.5rem;"></i>
+                    <h3 class="mt-2 mb-0" id="lowStock">Loading...</h3>
+                    <p class="text-muted mb-0">Low Stock Items</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="bi bi-star text-info" style="font-size: 2.5rem;"></i>
+                    <h3 class="mt-2 mb-0" id="topSeller">Loading...</h3>
+                    <p class="text-muted mb-0">Top Seller</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Grid -->
+    <div class="row">
+        <!-- Daily Sales Trend -->
+        <div class="col-lg-6 mb-4">
+            <div class="chart-card">
+                <h5><i class="bi bi-graph-up-arrow"></i> Daily Sales Trend</h5>
+                <canvas id="dailySalesChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Current Stock Levels -->
+        <div class="col-lg-6 mb-4">
+            <div class="chart-card">
+                <h5><i class="bi bi-bar-chart-fill"></i> Current Stock Levels (Top 10)</h5>
+                <canvas id="stockChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Category Distribution -->
+        <div class="col-lg-6 mb-4">
+            <div class="chart-card">
+                <h5><i class="bi bi-pie-chart-fill"></i> Category Distribution</h5>
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Top Selling Products -->
+        <div class="col-lg-6 mb-4">
+            <div class="chart-card">
+                <h5><i class="bi bi-trophy-fill"></i> Top Selling Products</h5>
+                <canvas id="topSellingChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Insights -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-lightbulb text-warning"></i> Key Insights</h5>
+                </div>
+                <div class="card-body">
+                    <div id="insights">
+                        <div class="spinner-container">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let dashboardData = null;
+
+    // Fetch dashboard data
+    fetch("/api/dashboard-data")
+        .then(response => response.json())
+        .then(data => {
+            dashboardData = data;
+            loadCharts(data);
+            updateSummaryCards(data);
+            generateInsights(data);
+        })
+        .catch(error => {
+            console.error('Error loading dashboard data:', error);
+            document.getElementById('insights').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> Error loading dashboard data. Please try again.
+                </div>
+            `;
+        });
+
+    function loadCharts(data) {
+        // 1. Daily Sales Chart
+        const dailySalesCtx = document.getElementById('dailySalesChart').getContext('2d');
+        new Chart(dailySalesCtx, {
+            type: 'line',
+            data: {
+                labels: data.sales_dates,
+                datasets: [{
+                    label: 'Sales',
+                    data: data.sales_values,
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // 2. Stock Chart
+        const stockCtx = document.getElementById('stockChart').getContext('2d');
+        new Chart(stockCtx, {
+            type: 'bar',
+            data: {
+                labels: data.stock_names,
+                datasets: [{
+                    label: 'Stock Quantity',
+                    data: data.stock_values,
+                    backgroundColor: '#198754',
+                    borderColor: '#146c43',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // 3. Category Distribution (Pie Chart)
+        const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+        
+        new Chart(categoryCtx, {
+            type: 'pie',
+            data: {
+                labels: data.category_labels || ['No Data'],
+                datasets: [{
+                    data: data.category_values || [1],
+                    backgroundColor: [
+                        '#0d6efd',
+                        '#198754',
+                        '#ffc107',
+                        '#dc3545',
+                        '#6c757d',
+                        '#17a2b8',
+                        '#e83e8c',
+                        '#6610f2'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // 4. Top Selling Chart
+        const topSellingCtx = document.getElementById('topSellingChart').getContext('2d');
+        new Chart(topSellingCtx, {
+            type: 'doughnut',
+            data: {
+                labels: data.top_selling_names,
+                datasets: [{
+                    data: data.top_selling_values,
+                    backgroundColor: [
+                        '#0d6efd',
+                        '#198754',
+                        '#ffc107',
+                        '#dc3545',
+                        '#17a2b8'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+
+    function updateSummaryCards(data) {
+        // Calculate totals
+        const totalSales = data.sales_values.reduce((a, b) => a + b, 0);
+        const totalProducts = data.stock_names.length;
+        const lowStock = data.stock_values.filter(v => v < 10).length;
+        const topSeller = data.top_selling_names[0] || 'N/A';
+
+        document.getElementById('totalSales').textContent = totalSales;
+        document.getElementById('totalProducts').textContent = totalProducts;
+        document.getElementById('lowStock').textContent = lowStock;
+        document.getElementById('topSeller').textContent = topSeller.length > 15 ? topSeller.substring(0, 15) + '...' : topSeller;
+    }
+
+    function generateInsights(data) {
+        const insights = [];
+
+        // Low stock insight
+        const lowStockCount = data.stock_values.filter(v => v < 10).length;
+        if (lowStockCount > 0) {
+            insights.push(`
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> 
+                    <strong>${lowStockCount}</strong> items are running low on stock. 
+                    <a href="/low-stock" class="alert-link">View details</a>
+                </div>
+            `);
+        }
+
+        // Sales trend
+        const recentSales = data.sales_values.slice(-3);
+        const avgRecentSales = recentSales.reduce((a, b) => a + b, 0) / recentSales.length;
+        const previousSales = data.sales_values.slice(-6, -3);
+        const avgPreviousSales = previousSales.reduce((a, b) => a + b, 0) / previousSales.length;
+
+        if (avgRecentSales > avgPreviousSales) {
+            insights.push(`
+                <div class="alert alert-success">
+                    <i class="bi bi-graph-up-arrow"></i> 
+                    Sales are trending <strong>upward</strong>! Recent average is ${Math.round(avgRecentSales)} vs previous ${Math.round(avgPreviousSales)}.
+                </div>
+            `);
+        } else if (avgRecentSales < avgPreviousSales) {
+            insights.push(`
+                <div class="alert alert-info">
+                    <i class="bi bi-graph-down-arrow"></i> 
+                    Sales have <strong>decreased</strong> recently. Recent average is ${Math.round(avgRecentSales)} vs previous ${Math.round(avgPreviousSales)}.
+                </div>
+            `);
+        }
+
+        // Top selling product
+        if (data.top_selling_names.length > 0) {
+            insights.push(`
+                <div class="alert alert-info">
+                    <i class="bi bi-star-fill"></i> 
+                    <strong>${data.top_selling_names[0]}</strong> is your best seller with ${data.top_selling_values[0]} units sold.
+                </div>
+            `);
+        }
+
+        document.getElementById('insights').innerHTML = insights.length > 0 
+            ? insights.join('') 
+            : '<p class="text-muted">No specific insights at this time. Keep uploading sales data for better analytics!</p>';
+    }
+</script>
+{% endblock %}

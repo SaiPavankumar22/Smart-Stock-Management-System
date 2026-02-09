@@ -1,0 +1,336 @@
+{% extends "layout.html" %}
+
+{% block title %}Stock Alerts - Smart Grocery{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="text-center mb-4">
+        <h2><i class="bi bi-exclamation-triangle text-warning"></i> Stock Alert Dashboard</h2>
+        <p class="text-muted">Monitor critical, low, and dead stock items</p>
+    </div>
+
+    <!-- Summary Alert Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-danger text-center h-100">
+                <div class="card-body">
+                    <i class="bi bi-exclamation-octagon text-danger" style="font-size: 3rem;"></i>
+                    <h3 class="mt-2 text-danger">{{ dead_stock_items|length }}</h3>
+                    <p class="mb-0">Dead Stock (0 units)</p>
+                    <a href="/dead-stock" class="btn btn-sm btn-danger mt-2">View Details</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-warning text-center h-100">
+                <div class="card-body">
+                    <i class="bi bi-exclamation-triangle text-warning" style="font-size: 3rem;"></i>
+                    <h3 class="mt-2 text-warning">{{ critical_stock_items|length }}</h3>
+                    <p class="mb-0">Critical Stock (< 5 units)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-info text-center h-100">
+                <div class="card-body">
+                    <i class="bi bi-info-circle text-info" style="font-size: 3rem;"></i>
+                    <h3 class="mt-2 text-info">{{ low_stock_items|length }}</h3>
+                    <p class="mb-0">Low Stock (5-9 units)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Critical Stock Section -->
+    {% if critical_stock_items and critical_stock_items|length > 0 %}
+    <div class="mb-5">
+        <h4 class="text-warning mb-3">
+            <i class="bi bi-exclamation-triangle-fill"></i> Critical Stock Items (< 5 units)
+        </h4>
+        <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+            <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+            <div>
+                <strong>URGENT!</strong> {{ critical_stock_items|length }} items are at critically low levels and need immediate attention.
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-warning">
+                        <tr>
+                            <th>Image</th>
+                            <th>Name</th>
+                            <th>Brand</th>
+                            <th>Category</th>
+                            <th>Stock</th>
+                            <th>Daily Sales</th>
+                            <th>Recommended Reorder</th>
+                            <th>Supplier</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in critical_stock_items %}
+                        <tr style="background-color: #fff3cd;">
+                        <td>
+                            <img src="{{ item.image }}" alt="{{ item.name }}" onerror="this.src='https://via.placeholder.com/60?text=No+Image'">
+                        </td>
+                        <td><strong>{{ item.name }}</strong></td>
+                            <td>{{ item.brand }}</td>
+                            <td>
+                                <span class="badge bg-secondary">{{ item.category }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-warning text-dark fs-6">
+                                    <i class="bi bi-exclamation-triangle"></i> {{ item.stock }}
+                                </span>
+                            </td>
+                            <td>{{ item.daily_sales or 0 }}</td>
+                            <td>
+                                <strong class="text-success">
+                                    {% set reorder_qty = ((item.daily_sales or 5) * 7) + 20 %}
+                                    {{ reorder_qty }} units
+                                </strong>
+                                <br>
+                                <small class="text-muted">(7 days + buffer)</small>
+                            </td>
+                            <td>{{ item.supplier or 'N/A' }}</td>
+                            <td class="action-btns">
+                                <a href="/edit-item/{{ item.objectID }}" class="btn btn-sm btn-warning">
+                                    <i class="bi bi-pencil"></i> Restock
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Low Stock Section (5-9 units) -->
+    {% if low_stock_items and low_stock_items|length > 0 %}
+    <div class="mb-5">
+        <h4 class="text-info mb-3">
+            <i class="bi bi-info-circle-fill"></i> Low Stock Items (5-9 units)
+        </h4>
+        <div class="table-container">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-info">
+                        <tr>
+                            <th>Image</th>
+                            <th>Name</th>
+                            <th>Brand</th>
+                            <th>Category</th>
+                            <th>Stock</th>
+                            <th>Daily Sales</th>
+                            <th>Recommended Reorder</th>
+                            <th>Supplier</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in low_stock_items %}
+                        <tr style="background-color: #d1ecf1;">
+                            <td>
+                                <img src="{{ item.image }}" alt="{{ item.name }}" onerror="this.src='https://via.placeholder.com/60?text=No+Image'">
+                            </td>
+                            <td><strong>{{ item.name }}</strong></td>
+                            <td>{{ item.brand }}</td>
+                            <td>
+                                <span class="badge bg-secondary">{{ item.category }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-info fs-6">
+                                    <i class="bi bi-info-circle"></i> {{ item.stock }}
+                                </span>
+                            </td>
+                            <td>{{ item.daily_sales or 0 }}</td>
+                            <td>
+                                <strong class="text-success">
+                                    {% set reorder_qty = ((item.daily_sales or 5) * 7) + 20 %}
+                                    {{ reorder_qty }} units
+                                </strong>
+                                <br>
+                                <small class="text-muted">(7 days + buffer)</small>
+                            </td>
+                            <td>{{ item.supplier or 'N/A' }}</td>
+                            <td class="action-btns">
+                                <a href="/edit-item/{{ item.objectID }}" class="btn btn-sm btn-info">
+                                    <i class="bi bi-pencil"></i> Update
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Overall Summary -->
+    {% set all_items_count = (dead_stock_items|length) + (critical_stock_items|length) + (low_stock_items|length) %}
+    {% if all_items_count > 0 %}
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-clipboard-check"></i> Overall Summary</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Total Items Needing Attention:</strong> {{ all_items_count }}</p>
+                    <ul>
+                        <li>Dead Stock (0): <strong class="text-danger">{{ dead_stock_items|length }}</strong></li>
+                        <li>Critical (< 5): <strong class="text-warning">{{ critical_stock_items|length }}</strong></li>
+                        <li>Low (5-9): <strong class="text-info">{{ low_stock_items|length }}</strong></li>
+                    </ul>
+                    <p class="mb-0 text-muted small">
+                        <i class="bi bi-info-circle"></i> Reorder quantities based on: daily sales × 7 days + 20 buffer
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-lightbulb"></i> Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="/dead-stock" class="btn btn-danger">
+                            <i class="bi bi-exclamation-octagon"></i> View Dead Stock
+                        </a>
+                        <a href="/inventory" class="btn btn-primary">
+                            <i class="bi bi-box-seam"></i> View Full Inventory
+                        </a>
+                        <button class="btn btn-secondary" onclick="window.print()">
+                            <i class="bi bi-printer"></i> Print Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Export Options -->
+    <div class="card mt-4">
+        <div class="card-body text-center">
+            <h5><i class="bi bi-download"></i> Export Low Stock Report</h5>
+            <p class="text-muted">Download this report for your records or to share with suppliers</p>
+            <button class="btn btn-success" onclick="exportToCSV()">
+                <i class="bi bi-file-earmark-spreadsheet"></i> Export to CSV
+            </button>
+            <button class="btn btn-primary" onclick="window.print()">
+                <i class="bi bi-printer"></i> Print Report
+            </button>
+        </div>
+    </div>
+
+    <!-- No Alerts Message -->
+    {% if all_items_count == 0 %}
+    <div class="text-center py-5">
+        <i class="bi bi-check-circle text-success" style="font-size: 5rem;"></i>
+        <h3 class="mt-4 text-success">Perfect Stock Levels!</h3>
+        <p class="lead text-muted">All items have healthy stock levels.</p>
+        <p class="text-muted">No critical, low, or dead stock items at the moment.</p>
+        <div class="mt-4">
+            <a href="/inventory" class="btn btn-primary me-2">
+                <i class="bi bi-box-seam"></i> View Inventory
+            </a>
+            <a href="/dashboard" class="btn btn-success">
+                <i class="bi bi-graph-up"></i> View Dashboard
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Export to CSV
+    function exportToCSV() {
+        const table = document.querySelector('table');
+        if (!table) {
+            alert('No data to export');
+            return;
+        }
+
+        let csv = [];
+        
+        // Headers
+        const headers = [];
+        table.querySelectorAll('thead th').forEach(th => {
+            headers.push(th.textContent.trim());
+        });
+        csv.push(headers.join(','));
+        
+        // Rows
+        table.querySelectorAll('tbody tr').forEach(tr => {
+            const row = [];
+            tr.querySelectorAll('td').forEach((td, index) => {
+                // Skip image column
+                if (index === 0) return;
+                
+                let text = td.textContent.trim();
+                // Remove newlines and extra spaces
+                text = text.replace(/\s+/g, ' ');
+                // Escape commas
+                if (text.includes(',')) {
+                    text = `"${text}"`;
+                }
+                row.push(text);
+            });
+            csv.push(row.join(','));
+        });
+        
+        // Download
+        const csvContent = csv.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `low_stock_report_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    }
+
+    // Print styling
+    window.addEventListener('beforeprint', function() {
+        document.body.classList.add('printing');
+    });
+
+    window.addEventListener('afterprint', function() {
+        document.body.classList.remove('printing');
+    });
+</script>
+
+<style>
+    @media print {
+        .navbar, footer, .btn, .action-btns {
+            display: none !important;
+        }
+        
+        .container {
+            max-width: 100% !important;
+        }
+        
+        .table {
+            font-size: 0.8rem;
+        }
+        
+        .card {
+            box-shadow: none !important;
+            border: 1px solid #dee2e6;
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,181 @@
+{% extends "layout.html" %}
+
+{% block title %}Edit Item - Smart Grocery{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-pencil-square"></i> Edit Product</h4>
+                </div>
+                <div class="card-body">
+                    <form id="editItemForm" method="POST" action="/edit-item/{{ item.objectID }}">
+                        <!-- Read-only Object ID -->
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="bi bi-key"></i> Product ID
+                            </label>
+                            <input type="text" class="form-control" value="{{ item.objectID }}" readonly disabled>
+                            <div class="form-text">This ID is read-only and cannot be changed</div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="name" class="form-label">
+                                    <i class="bi bi-tag"></i> Product Name *
+                                </label>
+                                <input type="text" class="form-control" id="name" name="name" value="{{ item.name }}" required>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="brand" class="form-label">
+                                    <i class="bi bi-award"></i> Brand *
+                                </label>
+                                <input type="text" class="form-control" id="brand" name="brand" value="{{ item.brand }}" required>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="category" class="form-label">
+                                    <i class="bi bi-list"></i> Category *
+                                </label>
+                                <select class="form-select" id="category" name="category" required>
+                                    <option value="groceries" {% if item.category == 'groceries' %}selected{% endif %}>Groceries</option>
+                                    <option value="dairy" {% if item.category == 'dairy' %}selected{% endif %}>Dairy</option>
+                                    <option value="beverages" {% if item.category == 'beverages' %}selected{% endif %}>Beverages</option>
+                                    <option value="snacks" {% if item.category == 'snacks' %}selected{% endif %}>Snacks</option>
+                                    <option value="personal_care" {% if item.category == 'personal_care' %}selected{% endif %}>Personal Care</option>
+                                    <option value="household" {% if item.category == 'household' %}selected{% endif %}>Household</option>
+                                    <option value="bakery" {% if item.category == 'bakery' %}selected{% endif %}>Bakery</option>
+                                    <option value="frozen" {% if item.category == 'frozen' %}selected{% endif %}>Frozen Foods</option>
+                                    <option value="other" {% if item.category == 'other' %}selected{% endif %}>Other</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="supplier" class="form-label">
+                                    <i class="bi bi-truck"></i> Supplier
+                                </label>
+                                <input type="text" class="form-control" id="supplier" name="supplier" value="{{ item.supplier or '' }}">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="price" class="form-label">
+                                    <i class="bi bi-currency-rupee"></i> Price (₹) *
+                                </label>
+                                <input type="number" class="form-control" id="price" name="price" step="0.01" min="0" value="{{ item.price }}" required>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="stock" class="form-label">
+                                    <i class="bi bi-box-seam"></i> Stock Quantity *
+                                </label>
+                                <input type="number" class="form-control" id="stock" name="stock" min="0" value="{{ item.stock }}" required>
+                                {% if item.stock < 10 %}
+                                <div class="form-text text-danger">
+                                    <i class="bi bi-exclamation-triangle"></i> Low stock alert!
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="daily_sales" class="form-label">
+                                    <i class="bi bi-graph-up"></i> Daily Sales
+                                </label>
+                                <input type="number" class="form-control" id="daily_sales" name="daily_sales" min="0" value="{{ item.daily_sales or 0 }}">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="image" class="form-label">
+                                <i class="bi bi-image"></i> Image URL
+                            </label>
+                            <input type="url" class="form-control" id="image" name="image" value="{{ item.image or '' }}">
+                            {% if item.image %}
+                            <div class="mt-2">
+                                <img src="{{ item.image }}" alt="{{ item.name }}" style="max-width: 150px; border-radius: 8px;" onerror="this.style.display='none'">
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">
+                                <i class="bi bi-text-paragraph"></i> Description
+                            </label>
+                            <textarea class="form-control" id="description" name="description" rows="3">{{ item.description or '' }}</textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <div>
+                                <a href="/inventory" class="btn btn-secondary">
+                                    <i class="bi bi-x-circle"></i> Cancel
+                                </a>
+                                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                                    <i class="bi bi-trash"></i> Delete Product
+                                </button>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-check-circle"></i> Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong>{{ item.name }}</strong>?</p>
+                <p class="text-danger"><i class="bi bi-exclamation-triangle"></i> This action cannot be undone and will permanently remove this product from your inventory.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="/delete-item/{{ item.objectID }}" class="btn btn-danger">
+                    <i class="bi bi-trash"></i> Yes, Delete
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Form validation
+    document.getElementById('editItemForm').addEventListener('submit', function(e) {
+        const price = parseFloat(document.getElementById('price').value);
+        const stock = parseInt(document.getElementById('stock').value);
+        
+        if (price < 0) {
+            e.preventDefault();
+            alert('Price cannot be negative');
+            return false;
+        }
+        
+        if (stock < 0) {
+            e.preventDefault();
+            alert('Stock cannot be negative');
+            return false;
+        }
+        
+        // Show loading state
+        const btn = this.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+    });
+</script>
+{% endblock %}

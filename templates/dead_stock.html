@@ -1,0 +1,184 @@
+{% extends "layout.html" %}
+
+{% block title %}Dead Stock - Smart Grocery{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="text-center mb-4">
+        <h2><i class="bi bi-exclamation-octagon text-danger"></i> Dead Stock - Out of Stock Items</h2>
+        <p class="text-muted">Items with 0 stock that need immediate restocking</p>
+    </div>
+
+    <!-- Critical Alert Banner -->
+    {% if items and items|length > 0 %}
+    <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+        <i class="bi bi-exclamation-octagon-fill fs-3 me-3"></i>
+        <div>
+            <strong>CRITICAL: {{ items|length }} items are completely out of stock!</strong>
+            <p class="mb-0">These items cannot be sold and need immediate restocking to avoid lost sales.</p>
+        </div>
+    </div>
+
+    <!-- Dead Stock Table -->
+    <div class="table-container">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-danger">
+                    <tr>
+                        <th>Image</th>
+                        <th>Name</th>
+                        <th>Brand</th>
+                        <th>Category</th>
+                        <th>Price</th>
+                        <th>Stock</th>
+                        <th>Daily Sales</th>
+                        <th>Lost Sales</th>
+                        <th>Priority</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr style="background-color: #ffe6e6;">
+                        <td>
+                            <img src="{{ item.image }}" alt="{{ item.name }}" onerror="this.src='https://via.placeholder.com/60?text=No+Image'">
+                        </td>
+                        <td><strong>{{ item.name }}</strong></td>
+                        <td>{{ item.brand }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ item.category }}</span>
+                        </td>
+                        <td><strong>₹{{ item.price }}</strong></td>
+                        <td>
+                            <span class="badge bg-danger fs-6">
+                                <i class="bi bi-x-circle"></i> 0
+                            </span>
+                        </td>
+                        <td>
+                            <span class="text-danger fw-bold">{{ item.daily_sales or 0 }}</span>
+                        </td>
+                        <td>
+                            <span class="text-danger fw-bold">
+                                ₹{{ ((item.daily_sales or 0) * item.price)|round(2) }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if (item.daily_sales or 0) > 50 %}
+                                <span class="badge bg-danger">URGENT</span>
+                            {% elif (item.daily_sales or 0) > 20 %}
+                                <span class="badge bg-warning text-dark">HIGH</span>
+                            {% else %}
+                                <span class="badge bg-secondary">MEDIUM</span>
+                            {% endif %}
+                        </td>
+                        <td class="action-btns">
+                            <a href="/edit-item/{{ item.objectID }}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-pencil"></i> Restock
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="bi bi-exclamation-octagon"></i> Impact Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Total Dead Stock Items:</strong> {{ items|length }}</p>
+                    <p><strong>Total Daily Sales Demand:</strong> 
+                        {{ items|sum(attribute='daily_sales') or 0 }} units
+                    </p>
+                    <p><strong>Estimated Lost Revenue/Day:</strong> 
+                        ₹{{ items|map(attribute='daily_sales')|sum * items|map(attribute='price')|sum / items|length if items|length > 0 else 0|round(2) }}
+                    </p>
+                    <p class="mb-0 text-danger">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        <strong>Action Required:</strong> Immediate restocking needed to resume sales
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="bi bi-lightbulb"></i> Recommended Actions</h5>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0">
+                        <li class="mb-2">
+                            <strong>Prioritize:</strong> Start with items marked as URGENT (high daily sales)
+                        </li>
+                        <li class="mb-2">
+                            <strong>Contact Suppliers:</strong> Place emergency orders immediately
+                        </li>
+                        <li class="mb-2">
+                            <strong>Customer Communication:</strong> Inform customers about availability
+                        </li>
+                        <li class="mb-0">
+                            <strong>Track Progress:</strong> Update stock levels as items arrive
+                        </li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card mt-4">
+        <div class="card-body text-center">
+            <h5><i class="bi bi-lightning-fill text-warning"></i> Quick Actions</h5>
+            <div class="btn-group mt-2" role="group">
+                <a href="/inventory" class="btn btn-primary">
+                    <i class="bi bi-box-seam"></i> View All Inventory
+                </a>
+                <a href="/low-stock" class="btn btn-warning">
+                    <i class="bi bi-exclamation-triangle"></i> View Low Stock
+                </a>
+                <button class="btn btn-success" onclick="window.print()">
+                    <i class="bi bi-printer"></i> Print Report
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- No Dead Stock -->
+    <div class="text-center py-5">
+        <i class="bi bi-check-circle text-success" style="font-size: 5rem;"></i>
+        <h3 class="mt-4 text-success">Excellent!</h3>
+        <p class="lead text-muted">No items are out of stock.</p>
+        <p class="text-muted">All products are available for sale.</p>
+        <div class="mt-4">
+            <a href="/inventory" class="btn btn-primary me-2">
+                <i class="bi bi-box-seam"></i> View Inventory
+            </a>
+            <a href="/dashboard" class="btn btn-success">
+                <i class="bi bi-graph-up"></i> View Dashboard
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    @media print {
+        .navbar, footer, .btn, .action-btns, .card-header.bg-info {
+            display: none !important;
+        }
+        .container {
+            max-width: 100% !important;
+        }
+        .table {
+            font-size: 0.8rem;
+        }
+    }
+</style>
+{% endblock %}

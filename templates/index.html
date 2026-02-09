@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Inventory Search</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+
+    <!-- Algolia Search JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/instantsearch.js@4"></script>
+
+    <style>
+        body { background: #f5f5f5; }
+        .search-box { max-width: 600px; margin: 40px auto; }
+        .product-card { border-radius: 10px; background: white; padding: 15px; }
+        img { width: 80px; border-radius: 6px; }
+    </style>
+</head>
+
+<body>
+<div class="container">
+    <h2 class="text-center mt-4">Smart Inventory Search</h2>
+
+    <div class="search-box">
+        <div id="searchbox"></div>
+    </div>
+
+    <div class="mt-4" id="hits"></div>
+</div>
+
+<script>
+    const searchClient = algoliasearch("YOUR_APP_ID", "YOUR_SEARCH_API_KEY");
+
+    const search = instantsearch({
+        indexName: "grocery_inventory",
+        searchClient,
+    });
+
+    search.addWidgets([
+        instantsearch.widgets.searchBox({
+            container: '#searchbox',
+            placeholder: 'Search items (atta, oil, biscuits...)'
+        }),
+
+        instantsearch.widgets.hits({
+            container: '#hits',
+            templates: {
+                item(hit) {
+                    return `
+                        <div class="product-card d-flex align-items-center mb-3">
+                            <img src="${hit.image}" />
+                            <div class="ms-3">
+                                <h5>${hit.name}</h5>
+                                <p class="mb-1"><b>Brand:</b> ${hit.brand}</p>
+                                <p class="mb-1"><b>Category:</b> ${hit.category}</p>
+                                <p class="mb-1"><b>Stock:</b> ${hit.stock}</p>
+                                <p><b>Price:</b> ₹${hit.price}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        })
+    ]);
+
+    search.start();
+</script>
+</body>
+</html>
